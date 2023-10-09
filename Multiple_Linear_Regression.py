@@ -16,45 +16,39 @@ data = pd.read_csv('50_Startups.csv')
 #print(data['State'].unique())
 
 #finding count of each value.
-#print(data['State'].value_counts())#selecting features and result.   OR Vector of DV(Dependent Variables) y, and Matrix of IV(Independent Variables) x
+#data['State'].value_counts()
 
 
-
-x=data.iloc[:,:-1].values
+#selecting features and result.   OR Vector of DV(Dependent Variables) y, and Matrix of IV(Independent Variables) x
+X=data.iloc[:,:-1].values
 
 y=data.iloc[:,-1:].values
 #y=y.drop(['Purchased_No'],axis=1)
 
-
 #Label Encoding
 from sklearn.preprocessing import LabelEncoder,OneHotEncoder
 label=LabelEncoder()
-x[:,3]=label.fit_transform(x[:,3])
+X[:,3]=label.fit_transform(X[:,3])
+
+#performing onehot encoding on label encoded column. Also dropping the first column of onehot-encoded values to avoid dummy variable trap.
+onehotencoder= OneHotEncoder(drop='first', sparse_output=False)
+X_encoded= onehotencoder.fit_transform(X[:,3].reshape(-1,1))#reshaping into 2d array using reshape.
 
 
-# doing type of one hot encoding to prevent erroe due to label encoding in country field
-#from sklearn.preprocessing import LabelEncoder,OneHotEncoder
-from sklearn.compose import ColumnTransformer
-#Encode Country Column
-label = LabelEncoder()
-x[:,3] = label.fit_transform(x[:,3])
-ct = ColumnTransformer([("State", OneHotEncoder(), [3])], remainder = 'passthrough')
-x = ct.fit_transform(x)
-
-
-x=x[:,1:]
+# Concatenate the original X with the one-hot encoded features
+X = np.concatenate((X[:,0:3 ], X_encoded), axis=1)
 
 
 #Using train-test split to break the data into training and testing data. test_size= 20%data is reserved for testing  
 from sklearn.model_selection import train_test_split
-x_train,x_test, y_train, y_test = train_test_split(x,y, test_size=0.2, random_state=0)
+X_train,X_test, y_train, y_test = train_test_split(X,y, test_size=0.2, random_state=0)
 
 #Feature Scaling- Here we are scaling all the data into the same scale.
 #can be done before train test split, then it would be easy.
 from sklearn.preprocessing import StandardScaler
-sc_x = StandardScaler()
-x_train = sc_x.fit_transform(x_train)
-x_test = sc_x.transform(x_test)
+sc_X = StandardScaler()
+X_train = sc_X.fit_transform(X_train)
+X_test = sc_X.transform(X_test)
 
 
 sc_y = StandardScaler()
@@ -67,33 +61,63 @@ from sklearn.linear_model import LinearRegression
 regressor = LinearRegression()
 
 #Training the regressor.
-regressor.fit(x_train, y_train)
+regressor.fit(X_train, y_train)
+
 
 
 #predicting Output:
-y_predict = regressor.predict(x_test)
+y_predict = regressor.predict(X_test)
 
 y_predict= sc_y.inverse_transform(y_predict)
 
 
-#Here c is the W0 value
+#Here b is the W0 value
 b=regressor.intercept_
 print("W0 value :",b)
 
-#Here b is the w1,w2,w3,w4,w5 values
+#Here c is the w1,w2,w3,w4,w5 values
 c=regressor.coef_
 print("Respective Values of W1,W2,W3,W4 and W5",c)
 
-d=sc_y.inverse_transform(regressor.predict([[-0.57735,1.36277,-1.11353,-2.21896,-0.136691
+d=sc_y.inverse_transform(regressor.predict([[-0.227907	,1.13222	,-0.922749,	-0.57735,	1.36277
+
 ]]))
 print("Predicted Value :",d)
 
+#Checking accuracy
+from sklearn.metrics import r2_score
 
+# Calculate R-squared
+##R squared ranges from 0 to 1, 1 is considered as the perfect fit.
+r_squared = r2_score(y_test, y_predict)
+
+print("R-squared:", r_squared)
+
+
+
+
+# Plotting Training Predictions vs. Training Data
+#plt.figure(figsize=(10, 6))
+plt.scatter(y_train, regressor.predict(X_train), color='blue')
+plt.plot([y_train.min(), y_train.max()], [y_train.min(), y_train.max()], linestyle='--', color='red', linewidth=2)
+plt.xlabel('Actual Values (Training Data)')
+plt.ylabel('Predicted Values (Training Predictions)')
+plt.title('Training Predictions vs. Training Data')
+plt.show()
+
+# Plotting Test Predictions vs. Test Data
+#plt.figure(figsize=(10, 6))
+plt.scatter(y_test, y_predict, color='green')
+plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], linestyle='--', color='purple', linewidth=2)
+plt.xlabel('Actual Values (Test Data)')
+plt.ylabel('Predicted Values (Test Predictions)')
+plt.title('Test Predictions vs. Test Data')
+plt.show()
 
 
 # Visual representation of the training-set predictions.
-plt.scatter(x_train[:, 3], y_train, color='red', label='Actual')
-plt.scatter(x_train[:, 3], regressor.predict(x_train), color='blue', label='Predicted')
+plt.scatter(X_train[:, [1]], y_train, color='red', label='Actual')
+plt.scatter(X_train[:, [1]], regressor.predict(X_train), color='blue', label='Predicted')
 plt.xlabel("Experience in Years")
 plt.ylabel("Salary")
 plt.title("Training-Set Graph: Salary vs Exp")
@@ -105,8 +129,8 @@ plt.show()
 
 # Visual representation of test-set predictions.
 #The algorithm is adjusting the salaries of under-paid and over-paid employees and giving a visual representation.
-plt.scatter(x_test[:, 3], y_test, color='red', label='Actual')
-plt.scatter(x_test[:, 3], y_predict, color='blue', label='Predicted')
+plt.scatter(X_test[:,[1]], y_test, color='red', label='Actual')
+plt.scatter(X_test[:, [1]], y_predict, color='blue', label='Predicted')
 plt.xlabel("Experience in Years")
 plt.ylabel("Salary")
 plt.title("Test-Set Graph: Salary vs Exp")
